@@ -1,0 +1,3 @@
+# Code owners for matryoshka-embeddings
+# These users will be requested for review when someone opens a pull request
+@ahilyakulkarni @cgl-memsql @hanson5b
