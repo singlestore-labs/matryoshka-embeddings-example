@@ -117,7 +117,12 @@ def setup_database(conn):
             embedding_128 VECTOR(128, F32) NOT NULL,
             embedding_256 VECTOR(256, F32) NOT NULL,
             embedding_512 VECTOR(512, F32) NOT NULL,
-            embedding_768 VECTOR(768, F32) NOT NULL
+            embedding_768 VECTOR(768, F32) NOT NULL,
+            VECTOR INDEX (embedding_64),
+            VECTOR INDEX (embedding_128),
+            VECTOR INDEX (embedding_256),
+            VECTOR INDEX (embedding_512),
+            VECTOR INDEX (embedding_768)
         )
     """)
     conn.commit()
