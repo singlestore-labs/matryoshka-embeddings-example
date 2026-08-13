@@ -11,13 +11,10 @@ import pymysql
 from sentence_transformers import SentenceTransformer
 from tabulate import tabulate
 
-DB_CONFIG = {
-    "host": "127.0.0.1",
-    "port": 3307,
-    "user": "root",
-    "password": "",
-    "database": "matryoshka_demo"
-}
+# Load configuration
+with open('config.json', 'r') as f:
+    config = json.load(f)
+    DB_CONFIG = config['singlestore']
 
 DIMENSIONS = [64, 128, 256, 512, 768]
 

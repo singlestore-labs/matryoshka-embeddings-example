@@ -5,7 +5,14 @@ Demonstrates using Matryoshka-capable embeddings with SingleStore. Shows how a s
 ## Quick Start
 
 ```bash
+# Install dependencies
 pip install -r requirements.txt
+
+# Configure database connection
+cp config.json.example config.json
+# Edit config.json with your SingleStore connection details
+
+# Run the demo
 python matryoshka_demo.py
 ```
 
@@ -52,7 +59,7 @@ embedding_256 = embedding_256 / np.linalg.norm(embedding_256)
 - `matryoshka_demo.py` - Working demo with Nomic Embed
 - `pride_and_prejudice.txt` - Sample data
 - `requirements.txt` - Dependencies
-- `GOOGLE_DOC_DRAFT.md` - Complete documentation
+- `config.json.example` - Database configuration template
 
 ## References
 
