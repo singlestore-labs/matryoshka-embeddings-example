@@ -1,5 +1,7 @@
 # Matryoshka Embeddings Example
 
+**Attention**: The code in this repository is intended for experimental use only and is not fully tested, documented, or supported by SingleStore. Visit the [SingleStore Forums](https://www.singlestore.com/forum) to ask questions about this repository.
+
 Demonstrates using Matryoshka-capable embeddings with SingleStore. Shows how a single embedding can be truncated to different dimensions and compares search results at each dimensionality.
 
 ## Quick Start
