@@ -129,11 +129,11 @@ def setup_database(conn):
             embedding_256 VECTOR(256, F32) NOT NULL,
             embedding_512 VECTOR(512, F32) NOT NULL,
             embedding_768 VECTOR(768, F32) NOT NULL,
-            VECTOR INDEX (embedding_64),
-            VECTOR INDEX (embedding_128),
-            VECTOR INDEX (embedding_256),
-            VECTOR INDEX (embedding_512),
-            VECTOR INDEX (embedding_768)
+            VECTOR INDEX (embedding_64) INDEX_OPTIONS '{"metric_type":"DOT_PRODUCT"}',
+            VECTOR INDEX (embedding_128) INDEX_OPTIONS '{"metric_type":"DOT_PRODUCT"}',
+            VECTOR INDEX (embedding_256) INDEX_OPTIONS '{"metric_type":"DOT_PRODUCT"}',
+            VECTOR INDEX (embedding_512) INDEX_OPTIONS '{"metric_type":"DOT_PRODUCT"}',
+            VECTOR INDEX (embedding_768) INDEX_OPTIONS '{"metric_type":"DOT_PRODUCT"}'
         )
     """)
     conn.commit()
@@ -144,19 +144,26 @@ def load_documents(conn, chunks):
     cursor = conn.cursor()
     cursor.execute(f"USE {DB_CONFIG['database']}")
 
+    # Prepare column names once
+    cols = ["text"] + [f"embedding_{dim}" for dim in DIMENSIONS]
+    placeholders = ", ".join(["%s"] * (1 + len(DIMENSIONS)))
+
+    # Collect all data for batch insert
+    batch_data = []
     for i, text in enumerate(chunks, 1):
         print(f"  Processing chunk {i}/{len(chunks)}...", end='\r')
         # Generate ONE 768d embedding, then create prefixes
         embeddings = generate_document_embedding(text, DIMENSIONS)
-        cols = ["text"] + [f"embedding_{dim}" for dim in DIMENSIONS]
-        placeholders = ", ".join(["%s"] * (1 + len(DIMENSIONS)))
-        values = [text] + [json.dumps(embeddings[dim]) for dim in DIMENSIONS]
+        values = [text] + [embeddings[dim] for dim in DIMENSIONS]
+        batch_data.append(values)
 
-        cursor.execute(
-            f"INSERT INTO documents ({', '.join(cols)}) VALUES ({placeholders})",
-            values
-        )
     print()  # New line after progress
+
+    # Batch insert all documents
+    cursor.executemany(
+        f"INSERT INTO documents ({', '.join(cols)}) VALUES ({placeholders})",
+        batch_data
+    )
     conn.commit()
     cursor.close()
 
@@ -172,7 +179,7 @@ def search_at_dimension(conn, query_embedding, dimension, limit=5):
         FROM documents
         ORDER BY score DESC
         LIMIT %s
-    """, (json.dumps(query_embedding), limit))
+    """, (query_embedding, limit))
     results = cursor.fetchall()
     elapsed = (time.time() - start) * 1000
 
