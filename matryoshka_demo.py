@@ -20,7 +20,8 @@ Compares vector search results across 64, 128, 256, 512, and 768 dimensions.
 """
 
 import json
-import time
+import os
+import numpy as np
 import pymysql
 from sentence_transformers import SentenceTransformer
 from tabulate import tabulate
@@ -32,7 +33,12 @@ with open('config.json', 'r') as f:
 
 DIMENSIONS = [64, 128, 256, 512, 768]
 
-model = None
+print("Loading Nomic Embed model (first run downloads ~500MB)...")
+model = SentenceTransformer(
+    "nomic-ai/nomic-embed-text-v1.5",
+    trust_remote_code=True
+)
+print("Model loaded!")
 
 
 def connect_db():
@@ -40,8 +46,7 @@ def connect_db():
         host=DB_CONFIG["host"],
         port=DB_CONFIG["port"],
         user=DB_CONFIG["user"],
-        password=DB_CONFIG["password"],
-        connect_timeout=5
+        password=DB_CONFIG["password"]
     )
     return conn
 
@@ -68,8 +73,6 @@ def generate_document_embedding(text, dimensions):
     2. Truncate to desired dimension
     3. Normalize the truncated vector
     """
-    import numpy as np
-
     # Use task prefix as recommended by Nomic
     # Do NOT normalize yet - we'll normalize after truncation
     full_embedding = model.encode(
@@ -94,8 +97,6 @@ def generate_query_embedding(text, dimensions):
 
     Important: Normalize AFTER truncation, not before.
     """
-    import numpy as np
-
     # Use task prefix as recommended by Nomic
     # Do NOT normalize yet - we'll normalize after truncation
     full_embedding = model.encode(
@@ -154,7 +155,8 @@ def load_documents(conn, chunks):
         print(f"  Processing chunk {i}/{len(chunks)}...", end='\r')
         # Generate ONE 768d embedding, then create prefixes
         embeddings = generate_document_embedding(text, DIMENSIONS)
-        values = [text] + [embeddings[dim] for dim in DIMENSIONS]
+        # Convert vectors to JSON strings as per documentation
+        values = [text] + [json.dumps(embeddings[dim]) for dim in DIMENSIONS]
         batch_data.append(values)
 
     print()  # New line after progress
@@ -172,19 +174,19 @@ def search_at_dimension(conn, query_embedding, dimension, limit=5):
     cursor = conn.cursor()
     cursor.execute(f"USE {DB_CONFIG['database']}")
 
-    start = time.time()
+    # Convert query embedding to JSON string
+    query_vec_json = json.dumps(query_embedding)
     cursor.execute(f"""
         SELECT id, text,
                DOT_PRODUCT(embedding_{dimension}, %s :> VECTOR({dimension})) AS score
         FROM documents
         ORDER BY score DESC
         LIMIT %s
-    """, (query_embedding, limit))
+    """, (query_vec_json, limit))
     results = cursor.fetchall()
-    elapsed = (time.time() - start) * 1000
 
     cursor.close()
-    return results, elapsed
+    return results
 
 
 def calculate_overlap(reference_results, test_results):
@@ -208,23 +210,19 @@ def compare_search(conn, query_text):
     query_embeddings = generate_query_embedding(query_text, DIMENSIONS)
 
     all_results = {}
-    all_timings = {}
 
     for dim in DIMENSIONS:
-        results, elapsed = search_at_dimension(conn, query_embeddings[dim], dim)
+        results = search_at_dimension(conn, query_embeddings[dim], dim)
         all_results[dim] = results
-        all_timings[dim] = elapsed
 
     reference_dim = max(DIMENSIONS)
     reference_results = all_results[reference_dim]
-    baseline_time = all_timings[reference_dim]
 
     for dim in DIMENSIONS:
         results = all_results[dim]
-        timing = all_timings[dim]
         overlap = calculate_overlap(reference_results, results)
 
-        print(f"\n{dim}d: {timing:.1f}ms, top-5 overlap {overlap:.0f}%")
+        print(f"\n{dim}d: top-5 overlap {overlap:.0f}%")
         for i, (doc_id, text, score) in enumerate(results[:3], 1):
             preview = text[:60] + "..." if len(text) > 60 else text
             print(f"  {i}. {preview}")
@@ -232,26 +230,19 @@ def compare_search(conn, query_text):
     # Summary
     table_data = []
     for dim in DIMENSIONS:
-        timing = all_timings[dim]
         overlap = calculate_overlap(reference_results, all_results[dim])
 
         table_data.append([
             f"{dim}d",
-            f"{timing:.1f}ms",
             f"{overlap:.0f}%" if dim != reference_dim else "100%"
         ])
 
-    print(f"\n{tabulate(table_data, headers=['Dimensions', 'Query time', 'Top-5 overlap with 768d'], tablefmt='grid')}")
+    print(f"\n{tabulate(table_data, headers=['Dimensions', 'Top-5 overlap with 768d'], tablefmt='grid')}")
 
 
 def main():
-    global model
     print("Matryoshka Embeddings - Dimension Comparison")
     print("="*70)
-
-    print("Loading Nomic Embed model (first run downloads ~500MB)...")
-    model = SentenceTransformer("nomic-ai/nomic-embed-text-v1.5", trust_remote_code=True)
-    print("Model loaded!")
 
     print("Connecting to database...")
     conn = connect_db()
