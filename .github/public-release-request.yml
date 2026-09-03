@@ -1,0 +1,6 @@
+business_justification: >
+  Educational demo showing Matryoshka embeddings with SingleStore.                                                                                                 
+  Demonstrates how to truncate embeddings to different dimensions for vector search.
+  Contains no proprietary SingleStore information.                                                                                                                 
+license: Apache-2.0                                                                                                                                              
+primary_contact: ahilyakulkarni
