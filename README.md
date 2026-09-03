@@ -56,6 +56,10 @@ embedding_256 = embedding_256 / np.linalg.norm(embedding_256)
 # 4. Store and search at different dimensions
 ```
 
+## Limitations
+
+This example uses L2 normalization after truncation for simplicity. Nomic Embed v1.5 applies layer normalization before truncation, followed by L2 normalization of the truncated vector, so results may differ slightly from the model's recommended usage.
+
 ## Files
 
 - `matryoshka_demo.py` - Working demo with Nomic Embed
