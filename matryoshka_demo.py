@@ -121,8 +121,9 @@ def setup_database(conn):
     cursor.execute(f"CREATE DATABASE IF NOT EXISTS {DB_CONFIG['database']}")
     cursor.execute(f"USE {DB_CONFIG['database']}")
 
+    cursor.execute("DROP TABLE IF EXISTS documents")
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS documents (
+        CREATE TABLE documents (
             id INT PRIMARY KEY AUTO_INCREMENT,
             text TEXT,
             embedding_64 VECTOR(64, F32) NOT NULL,
